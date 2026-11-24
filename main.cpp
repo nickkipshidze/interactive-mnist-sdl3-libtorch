@@ -6,9 +6,11 @@
 #include <torch/torch.h>
 #include <torch/data/datasets/mnist.h>
 
+#include "conf.hpp"
+
 namespace nn = torch::nn;
 
-nn::Sequential trainMnistModel() {
+nn::Sequential trainMnistModel(int numEpochs=4) {
     auto dataset = torch::data::datasets::MNIST("./MNIST/raw").map(
         torch::data::transforms::Stack<>()
     );
@@ -16,7 +18,7 @@ nn::Sequential trainMnistModel() {
     auto dataloader = torch::data::make_data_loader(
         std::move(dataset),
         torch::data::DataLoaderOptions()
-        .batch_size(512)
+        .batch_size(1024)
         .drop_last(true)
         .enforce_ordering(false)
     );
@@ -34,8 +36,6 @@ nn::Sequential trainMnistModel() {
     );
 
     auto criterion = nn::CrossEntropyLoss();
-
-    constexpr int numEpochs = 4;
 
     for (int epoch{1}; epoch < numEpochs+1; ++epoch) {
         float lossSum = 0;
@@ -87,13 +87,7 @@ void renderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_FP
     SDL_DestroySurface(surface);
 }
 
-void renderPredictions(SDL_Renderer *renderer, torch::Tensor &predictions, SDL_FPoint offset, TTF_Font *font) {
-    float maxWidth = 347.0f;
-    float height = 17.65f;
-    float gaps = 18.0f;
-
-    // 31, 9
-
+void renderPredictions(SDL_Renderer *renderer, torch::Tensor &predictions, SDL_FPoint offset, TTF_Font *font, float maxWidth=347.0f, float height=17.65f, float gaps=18.0f) {
     for (int i{0}; i < predictions.size(0); ++i) {
         SDL_FRect barrect = {
             offset.x, (height+gaps)*i+offset.y,
@@ -145,20 +139,20 @@ void safeAdd(std::vector<float> &data, int columns, SDL_Point position, float va
 // Paused dev 4:14 PM
 // Continued dev 4:32 PM
 // Paused dev 6:21 PM
+// Continued dev 8:25 PM
+// Paused dev 8:55 PM
 int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    auto model = trainMnistModel();
+    auto model = trainMnistModel(6);
     model->eval();
 
-    SDL_Window *window = SDL_CreateWindow("MNIST Model", 1024, 512, 0);
+    SDL_Window *window = SDL_CreateWindow("Interactive MNIST classifier", conf::winsize.x, conf::winsize.y, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderLogicalPresentation(renderer, 1024, 512, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-    
-    constexpr int FPS = 144;
+    SDL_SetRenderLogicalPresentation(renderer, conf::resolution.x, conf::resolution.y, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
     TTF_Font *fontInterBold = TTF_OpenFont("./Inter-ExtraBold.ttf", 24);
 
@@ -174,7 +168,7 @@ int main(int argc, char *argv[]) {
 
     bool running = true;
     while (running) {
-        SDL_Delay((1.0f/FPS)*1000);
+        SDL_Delay((1.0f/conf::FPS)*1000);
         clockNow = SDL_GetPerformanceCounter();
         float deltaTime = (float)(clockNow - clockLast) / SDL_GetPerformanceFrequency();
         clockLast = clockNow;
